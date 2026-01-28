@@ -8,7 +8,7 @@ import os
 import psutil
 import json
 
-from data_process.data_info import data_info_dict
+from utils.data_info import data_info_dict
 
 
 def process_init():
