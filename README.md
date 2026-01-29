@@ -1,4 +1,4 @@
-# BrainBenchmark
+# Brain4FMs
 The benchmark of self-supervised Brain Foundation Models on electrical brain signals.
 
 ## Table of Contents
