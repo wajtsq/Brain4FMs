@@ -1,7 +1,7 @@
 # Brain4FMs
 The benchmark of self-supervised Brain Foundation Models on electrical brain signals.
 
-## Table of Contents
+## Catalogue
 - [📋 Overview](#overview)
 - [⚙️ Get Started](#start)
     * [🗄️ Data Preprocessing](#dataset)
@@ -42,14 +42,14 @@ Download the datasets to obtain the raw data files for your target dataset. Then
 
 This benchmark support the training and evaluating of the models with a pretrained checkpoint. You should update the path of checkpoints in `model/model_config.py`. 
 
-### Pipeline
+#### Pipeline
 
 To load a checkpoint and train or evaluate from the checkpoint, please run the `pretrained_run.py`. For the `--run_mode` parameter, you can choose one from these strings:
 
 - `finetune`: load the checkpoint, and begin finetune from the checkpoint.
 - `test`: evaluate the model with this checkpoint.
 
-### Note
+#### Note
 
 **Fair comparison.** If you want to evaluate a result and make a direct performance comparison with other models on the same dataset, the following arguments about input data must be set according to a unified setting. These arguments includes `dataset`, `seq_len`, `patch_len`. 
 
@@ -236,7 +236,7 @@ By the steps above, a new method can be added to the benchmark.
 The benchmark contains 18 public datasets. 
 [CHBMIT](https://physionet.org/content/chbmit/1.0.0/), [MAYO](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7297990/), [FNUSA](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7297990/), [UCSD](https://openneuro.org/datasets/ds002778/versions/1.0.5), [SleepEDF](https://physionet.org/content/sleep-edfx/1.0.0/), [ISRUC](https://sleeptight.isr.uc.pt/), [Dep-122](https://doi.org/10.18112/openneuro.ds003478.v1.1.0), [Schizophrenia_28](https://doi.org/10.18150/repod.0107441), [ADHD-Adult](https://doi.org/10.17632/6k4g25fhzg.1), [ADHD-Child](https://doi.org/10.21227/rzfh-zn36), [ADFD](https://openneuro.org/datasets/ds004504/versions/1.0.2), [MD64](https://doi.org/10.6084/m9.figshare.4244171.v2), [DEAP](https://www.eecs.qmul.ac.uk/mmv/datasets/deap/index.html), [SEED-IV](https://bcmi.sjtu.edu.cn/home/seed/index.html), [EEGMMIDB](https://bcmi.sjtu.edu.cn/home/seed/index.html), [EEGMat](https://physionet.org/content/eegmat/1.0.0/), [BCI-2a](https://www.bbci.de/competition/iv/#dataset1),[Chisco](https://openneuro.org/datasets/ds005170/versions/1.1.2).  
 
-## Benchmark
+### Benchmark
 | Mode Name | Dataset | AUROC | Acc | F1 | F2 |
 | -------------- | ----------- | ----------- | ----------- | ----------- | ----------- |
 | REVE | ADFD | **$84.28 \pm 7.12$** | **$77.36 \pm 7.89$** | **$79.11 \pm 6.58$** | $78.70 \pm 8.94$ |
