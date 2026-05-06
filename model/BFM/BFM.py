@@ -91,9 +91,11 @@ class BFM(nn.Module):
         # logits = logits.unsqueeze(1)
         logit = clsf(logits)
         
-        if args.run_mode != 'test':
+        if args.run_mode != 'test' and args.run_mode != 'few-shot':
             loss += loss_func(logit, y)
             return loss, logit, y
+        elif args.run_mode == 'few-shot':
+            return logits, logit, y
         else:
             return logit, y
         

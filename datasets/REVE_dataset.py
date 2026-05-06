@@ -41,9 +41,10 @@ class REVEDataset(Dataset):
     def __init__(self, args, x, y):
         # x: (seq_num, ch_num, N)
         # y: (seq_num, )
-        ch_pos = None
+        ch_pos, perm = None, None
         if isinstance(x, dict):
             ch_pos = x.get("pos", None)
+            perm = x.get("perm", None)
             x = x['x']
         
         pos_bank = AutoModel.from_pretrained(ModelPathArgs.REVE_pos_path, 
@@ -54,6 +55,8 @@ class REVEDataset(Dataset):
             with open(channel_path, 'r') as f:
                 channel_names = json.load(f)
             channel_names = [_canonicalize_ch_name(ch) for ch in channel_names]
+            if perm is not None:
+                channel_names = [channel_names[i] for i in perm]
 
             global_pos = get_safe_global_pos(pos_bank, channel_names)
             if ch_pos is not None:

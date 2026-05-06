@@ -38,12 +38,11 @@ class Mbrain_Trainer:
 
     @staticmethod
     def optimizer(args, model, clsf):
-        return torch.optim.Adam([{'params': model.encoder.parameters(), 'lr': 1e-3}, 
-                                #  {'params':model.cls.parameters(), 'lr': 5e-4},
-                                 {'params': model.att.parameters(), 'lr': 1e-6},
+        return torch.optim.Adam([{'params': model.encoder.parameters(), 'lr': args.model_lr}, 
+                                 {'params':model.cls.parameters(), 'lr': args.clsf_lr},
+                                 {'params': model.att.parameters(), 'lr': args.model_lr},
                                  {'params': clsf.parameters(), 'lr': args.clsf_lr}],
-                                    betas=(0.9, 0.999), eps=1e-08,
-                                    weight_decay=1e-6)
+                                    betas=(0.9, 0.99), eps=1e-08,)
 
     @staticmethod
     def scheduler(optimizer):
@@ -101,6 +100,10 @@ class Mbrain(nn.Module):
 
         if args.run_mode == 'test':
             return logit, y
+        elif args.run_mode == 'prototype':
+            emb = emb.mean(dim=1)
+            emb = emb.mean(dim=1)
+            return emb, logit, y
         else:
             loss = loss_func(logit, y)
             if all_losses.ndim > 0:

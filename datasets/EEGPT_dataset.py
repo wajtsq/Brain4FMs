@@ -10,14 +10,18 @@ from model.EEGPT.Modules.models.EEGPT_mcae_finetune import CHANNEL_DICT
 class EEGPTDataset(Dataset):
     def __init__(self, args, x, y):
         # x: (seq_num, ch_num, N)
-        # y: (seq_num, )   
+        # y: (seq_num, )
+        perm = None
         if isinstance(x, dict):
+            perm = x.get("perm", None)
             x = x['x']
         channel_path = os.path.join(args.full_data_path, 'channels_lst.json')
         if os.path.exists(channel_path):
             with open(channel_path, 'r') as f:
                 channels_names = json.load(f)
             channels_names = [name.split(' ')[-1].split('-')[0].upper() for name in channels_names]
+            if perm is not None and args.run_mode != 'test':
+                channels_names = [channels_names[i] for i in perm]
             keep_idx = [i for i, n in enumerate(channels_names) if n in CHANNEL_DICT]
             if len(keep_idx) == 0:
                 raise ValueError("No matching channels found in CHANNEL_DICT!")

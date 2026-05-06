@@ -62,7 +62,7 @@ class LaBraM_Trainer:
             [   
                 {'params': filter(lambda p: p.requires_grad, model.parameters()), 'lr': args.model_lr},
             ],
-            betas=(0.9, 0.95), eps=1e-5,
+            betas=(0.9, 0.99), eps=1e-8,
         )
 
     @staticmethod
@@ -141,6 +141,8 @@ class LaBraM(nn.Module):
 
         if args.run_mode == 'test':
             return logit, y
+        elif args.run_mode == 'prototype':
+            return emb, logit, y
         else:
             loss = loss_func(logit, y)
             return loss, logit, y
@@ -171,7 +173,7 @@ class LaBraM(nn.Module):
         args.window_size = (1, args.input_size // patch_size)
         args.patch_size = patch_size
         
-        checkpoint = torch.load(args.finetune, map_location='cpu')
+        checkpoint = torch.load(args.finetune, map_location='cpu', weights_only=False)
         for model_key in args.model_key.split('|'):
             if model_key in checkpoint:
                 checkpoint_model = checkpoint[model_key]

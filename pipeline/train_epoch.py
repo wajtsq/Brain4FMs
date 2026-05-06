@@ -17,18 +17,22 @@ def train_epoch(args, tr_x_list, tr_y_list, model, clsf, loss_func, optimizer, s
     batch_cnt = 0
     epo_loss = 0
 
-    epo_y = torch.tensor([], dtype=torch.long)
-    epo_pred = torch.tensor([], dtype=torch.long)
-    epo_logit = torch.tensor([], dtype=torch.float32)
+    if args.run_mode == 'finetune' or args.run_mode == 'test' or args.run_mode == 'few-shot' or args.run_mode == 'prototype':
+        epo_y = torch.tensor([], dtype=torch.long)
+        epo_pred = torch.tensor([], dtype=torch.long)
+        epo_logit = torch.tensor([], dtype=torch.float32)
 
     bat_cnt = 0
     file_num = len(tr_x_list)
+    accumulation_steps = max(1, args.accumulation_steps)
+    optimizer.zero_grad()
     for file_idx in range(file_num):
         tr_x = tr_x_list[file_idx]
         tr_y = tr_y_list[file_idx]
 
         train_dataset = dataset_class_dict[args.model](args, tr_x, tr_y)
         train_loader = train_dataset.get_data_loader(args.batch_size, shuffle=True, num_workers=0)
+        num_batches = len(train_loader)
 
         for batch_id, data_packet in enumerate(tqdm(train_loader, disable=args.tqdm_dis, desc=f'file{file_idx}/{file_num}')):
             # x: (bsz, ch_num, seq_len, patch_len)
@@ -40,19 +44,25 @@ def train_epoch(args, tr_x_list, tr_y_list, model, clsf, loss_func, optimizer, s
             else:
                 ret = model.forward_propagate(args, data_packet, model, clsf, loss_func)
 
-            batch_loss, logit, y = ret
+            if args.run_mode == 'finetune' or args.run_mode == 'test' or args.run_mode == 'few-shot' or args.run_mode == 'prototype':
+                batch_loss, logit, y = ret
 
-            pred = torch.argmax(logit, dim=-1)
-            epo_y = torch.cat([epo_y, y.cpu()])
-            epo_pred = torch.cat([epo_pred, pred.detach().cpu()], dim=0)
-            epo_logit = torch.cat([epo_logit, logit.detach().cpu()], dim=0)
+                pred = torch.argmax(logit, dim=-1)
+                epo_y = torch.cat([epo_y, y.cpu()])
+                epo_pred = torch.cat([epo_pred, pred.detach().cpu()], dim=0)
+                epo_logit = torch.cat([epo_logit, logit.detach().cpu()], dim=0)
 
-            optimizer.zero_grad()
-            batch_loss.backward()
-            optimizer.step()
+            raw_batch_loss = batch_loss.detach().cpu().numpy()
+            (batch_loss / accumulation_steps).backward()
+
+            is_accumulation_boundary = (batch_id + 1) % accumulation_steps == 0
+            is_last_batch = batch_id + 1 == num_batches
+            if is_accumulation_boundary or is_last_batch:
+                optimizer.step()
+                optimizer.zero_grad()
 
             batch_cnt += 1
-            epo_loss += batch_loss.detach().cpu().numpy()
+            epo_loss += raw_batch_loss
 
         if scheduler is not None:
             scheduler.step()

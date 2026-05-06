@@ -43,9 +43,10 @@ class NeuroLMDataset(Dataset):
             x: EEG data with shape (seq_num, ch_num, N)
             y: Labels with shape (seq_num, )
         """
-        pos = None
+        pos, perm = None, None
         if isinstance(x, dict):
             pos = x.get("pos", None)
+            perm = x.get("perm", None)
             x = x['x']
         self.seq_num, self.ch_num, N = x.shape
         x = x[..., :args.seq_len*args.patch_len]
@@ -72,6 +73,8 @@ class NeuroLMDataset(Dataset):
         if os.path.exists(channel_path):
             with open(channel_path, 'r') as f:
                 self.ch_name = json.load(f)
+            if perm is not None and args.run_mode == 'finetune' and args.exp_id == '-4':
+                self.ch_name = [self.ch_name[i] for i in perm]
            
          # initialize GPT tokenizer
         enc = tiktoken.get_encoding('gpt2')

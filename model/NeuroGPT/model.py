@@ -200,7 +200,7 @@ class Model(torch.nn.Module):
             embs, features = self.encoder(batch['inputs'])
             #attempt for trying fine-tune only the encoder, but the encoder cannot combine information across chunks.
             if self.is_decoding_mode and self.ft_only_encoder:
-                if self.run_mode == 'exp1' or self.run_mode == 'exp3':
+                if self.run_mode == 'few-shot' or self.run_mode == 'prototype':
                     outputs={'outputs': features, 'decoding_logits': features, 'embs': embs}
                 else:
                     outputs={'outputs': features, 'decoding_logits': features}

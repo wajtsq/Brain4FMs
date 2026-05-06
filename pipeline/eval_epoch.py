@@ -11,6 +11,8 @@ from utils.misc import update_logs, show_logs, make_dir_if_not_exist
 
 def evaluate_epoch(args, x_list, y_list, model, clsf, loss_func, step):
     assert step == 'valid' or step == 'test'
+    if args.run_mode == 'few-shot' and step == 'test':
+        args.run_mode = 'test'
 
     model.eval()
     clsf.eval()
@@ -21,9 +23,10 @@ def evaluate_epoch(args, x_list, y_list, model, clsf, loss_func, step):
     batch_cnt = 0
     epo_loss = 0
 
-    epo_y = torch.tensor([], dtype=torch.long)
-    epo_pred = torch.tensor([], dtype=torch.long)
-    epo_logit = torch.tensor([], dtype=torch.float32)
+    if args.run_mode == 'finetune' or args.run_mode == 'test':
+        epo_y = torch.tensor([], dtype=torch.long)
+        epo_pred = torch.tensor([], dtype=torch.long)
+        epo_logit = torch.tensor([], dtype=torch.float32)
 
     file_num = len(x_list)
     for file_idx in range(file_num):
@@ -36,9 +39,10 @@ def evaluate_epoch(args, x_list, y_list, model, clsf, loss_func, step):
             valid_dataset = dataset_class_dict[args.model](args, x, y)
         valid_loader = valid_dataset.get_data_loader(args.batch_size, shuffle=False, num_workers=0)
 
-        file_y = torch.tensor([], dtype=torch.long)
-        file_pred = torch.tensor([], dtype=torch.long)
-        file_logit = torch.tensor([], dtype=torch.float32)
+        if args.run_mode == 'finetune' or args.run_mode == 'test':
+            file_y = torch.tensor([], dtype=torch.long)
+            file_pred = torch.tensor([], dtype=torch.long)
+            file_logit = torch.tensor([], dtype=torch.float32)
             
         with torch.no_grad():
             for batch_id, data_packet in enumerate(tqdm(valid_loader, disable=args.tqdm_dis, desc=f'file{file_idx}/{file_num}')):
@@ -76,7 +80,10 @@ def evaluate_epoch(args, x_list, y_list, model, clsf, loss_func, step):
         epo_pred  = torch.cat([epo_pred,  file_pred.detach().cpu()], dim=0)
         epo_logit = torch.cat([epo_logit, file_logit.detach().cpu()], dim=0)
 
-    metrics = metrics_dict[args.dataset](args, epo_pred.cpu(), epo_logit.cpu(), epo_y.cpu())
+    if args.run_mode == 'finetune' or args.run_mode == 'test':
+        metrics = metrics_dict[args.dataset](args, epo_pred.cpu(), epo_logit.cpu(), epo_y.cpu())
+    else:
+        metrics = None
     epo_loss /= batch_cnt
     epo_logs = update_logs(args, epo_logs, epo_loss, metrics)
 

@@ -108,6 +108,8 @@ class CBraMod(nn.Module):
 
         if args.run_mode == 'test':
             return logit, y
+        elif args.run_mode == 'prototype':
+            return emb, logit, y
         else:
             loss = loss_func(logit, y)
             return loss, logit, y

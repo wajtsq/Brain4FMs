@@ -28,8 +28,10 @@ process_init()
 from model.ch_aggr_clsf import ChannelAggrClsf, LinearClsf
 from pipeline.eval_epoch import evaluate_epoch
 from pipeline.train_epoch import train_epoch
+from pipeline.prototype_epoch import get_prototype, contrast
 from utils.meta_info import get_data_dict, trainer_dict, model_dict
 from utils.data_info import data_info_dict
+from utils.get_data import sample_training_data
 
 
 def str2bool(v):
@@ -56,10 +58,14 @@ if __name__ == '__main__':
     group_train.add_argument('--is_parallel', type=str2bool, default=True,
                              help='Use more than one gpu')
     group_train.add_argument('--cv_id', type=int, default=4, help='The cross validation id.')
-    group_train.add_argument('--run_mode', type=str, default='finetune',   # finetune, test
+    group_train.add_argument('--run_mode', type=str, default='finetune',   # finetune, test, few-shot, prototype
                              help='To perform finetuning, or testing.')
+    group_train.add_argument('--shot', type=int, default=8,
+                             help='The sample number of prototype few shot.')
     group_train.add_argument('--batch_size', type=int, default=2,
                              help='Number of batches.')
+    group_train.add_argument('--accumulation_steps', type=int, default=1,
+                             help='Gradient accumulation parameter.')
     group_train.add_argument('--save_epochs', type=int, default=1,
                              help='The epoch number to save checkpoint.')
     group_train.add_argument('--warmup_epoch', type=int, default=3,
@@ -129,6 +135,7 @@ if __name__ == '__main__':
     args.cnn_in_channels = data_info_dict[args.dataset]['channel']
     args.seq_len = data_info_dict[args.dataset]['seq_len']
     args.downstream = data_info_dict[args.dataset]['downstream']
+    args.accumulation_steps = max(1, 128 // args.batch_size)
     if 'Chisco' in args.dataset:
         args.label_path = data_info_dict[args.dataset]['label_path']
 
@@ -249,6 +256,17 @@ if __name__ == '__main__':
         ts_logs, _ = evaluate_epoch(args, ts_x_list, ts_y_list, model, clsf, loss_func, step='test')
         save_logs(ts_logs, f"{args.save_ckpt_path}/test_logs.json")
         exit(0)
+    elif args.run_mode == 'prototype':
+        ts_x_list, ts_y_list = get_data_dict[args.dataset](args, step='test')
+        tr_x_list, tr_y_list = sample_training_data(tr_x_list, tr_y_list, vl_x_list, vl_y_list, shot=args.shot)
+        prototype = get_prototype(args, model, tr_x_list, tr_y_list, clsf, loss_func)
+        ts_logs = contrast(args, model, ts_x_list[0], ts_y_list[0], prototype, clsf, loss_func)
+        save_logs(ts_logs, f"{args.save_ckpt_path}/{args.shot}-shot_logs.json")
+        exit(0)
+    elif args.run_mode == 'few-shot':
+        ts_x_list, ts_y_list = get_data_dict[args.dataset](args, step='test')
+        tr_x_list, tr_y_list = sample_training_data(tr_x_list, tr_y_list, vl_x_list, vl_y_list, shot=args.shot)
+        tr_x_list, tr_y_list = [tr_x_list], [tr_y_list]
     print('-' * 50)
 
     print(f"Running at most {args.epoch_num} epochs")
@@ -263,7 +281,7 @@ if __name__ == '__main__':
         # cpu_stats()
 
         tr_logs, tr_loss = train_epoch(args, tr_x_list, tr_y_list, model, clsf, loss_func, optimizer, scheduler,)
-        if epoch >= args.warmup_epoch:
+        if epoch >= args.warmup_epoch and args.run_mode != 'few-shot':
             vl_logs, vl_loss = evaluate_epoch(args, vl_x_list, vl_y_list, model, clsf, loss_func, step='valid')
 
             # print(f'Ran {epoch - start_epoch + 1} epochs in {time.time() - start_time:.2f} seconds')
@@ -306,5 +324,9 @@ if __name__ == '__main__':
             if wait_epoch >= args.patience:
                 break
 
+    if args.run_mode == 'few-shot':
+        ts_logs, ts_loss = evaluate_epoch(args, ts_x_list, ts_y_list, model, clsf, loss_func, step='test')
+        main_logs = update_main_logs(main_logs, tr_logs, ts_logs, epoch)
+        save_logs(main_logs, f"{args.save_ckpt_path}/{args.shot}-shot_logs.json")
+        print('Main logs saved.')
     print('-' * 10, 'Training finished', '-' * 10)
-

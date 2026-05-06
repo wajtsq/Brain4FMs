@@ -57,7 +57,7 @@ class NeuroLM_Trainer:
             {'params': nodecay_params, 'weight_decay': 0.0},
             {'params': clsf.parameters(), 'lr': args.clsf_lr, 'weight_decay': 1e-6}
         ]
-        optimizer = torch.optim.AdamW(optim_groups, lr=5e-4, betas=(0.9, 0.95), **extra_args)
+        optimizer = torch.optim.AdamW(optim_groups, lr=args.model_lr, betas=(0.9, 0.99), eps=1e-8, **extra_args)
 
         state_dict = checkpoint['optimizer']
         optimizer_state_dict = optimizer.state_dict()
@@ -164,7 +164,9 @@ class NeuroLM(nn.Module):
         emb = logits.mean(1)
         logit = clsf(emb)
         
-        if args.run_mode != 'test':
+        if args.run_mode == 'prototype':
+            return emb, logit, label
+        elif args.run_mode != 'test':
             loss_total = loss_func(logit, label)
             if len(data_packet) == 9: 
                 if args.is_parallel:
