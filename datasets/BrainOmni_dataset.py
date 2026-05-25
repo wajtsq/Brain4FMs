@@ -105,9 +105,10 @@ class BrainOminiDataset(Dataset):
     def __init__(self, args, x, y):
         # x: (seq_num, ch_num, N)
         # y: (seq_num, )
-        ch_pos = None
+        ch_pos, perm = None, None
         if isinstance(x, dict):
             ch_pos = x.get("pos", None)
+            perm = x.get("perm", None)
             x = x['x']
         # sensor_type
         self.sensor_type = torch.full(
@@ -120,6 +121,8 @@ class BrainOminiDataset(Dataset):
         if os.path.exists(channel_path):
             with open(channel_path, 'r') as f:
                 channel_names = json.load(f)
+            if perm is not None:
+                channel_names = [channel_names[i] for i in perm]
             global_pos6, global_valid_mask, unknown = _build_global_pos_table(channel_names, drop_unknown=args.drop_unknown)
             keep_indices = [i for i, b in enumerate(global_valid_mask) if b]
             if len(keep_indices) == 0:

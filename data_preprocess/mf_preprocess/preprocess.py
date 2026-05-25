@@ -92,7 +92,7 @@ def raw_data(args):
             spec.append(np.load(os.path.join(args.data_save_dir, dataset_name, f'group_data/group_{i}_spec.npy')))
 
     spec = np.concatenate(spec, axis=1)
-    np.save('/home/nas/share/TUEG/preprocessed_data/mixture/mf.npy', spec)
+    np.save('/preprocessed_data/mixture/mf.npy', spec)
 
 
 args = PreprocessArgs()

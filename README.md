@@ -1,7 +1,7 @@
-# BrainBenchmark
+# Brain4FMs
 The benchmark of self-supervised Brain Foundation Models on electrical brain signals.
 
-## Table of Contents
+## Catalogue
 - [📋 Overview](#overview)
 - [⚙️ Get Started](#start)
     * [🗄️ Data Preprocessing](#dataset)
@@ -50,7 +50,7 @@ Download the datasets to obtain the raw data files for your target dataset. Then
 
 This benchmark support the training and evaluating of the models with a pretrained checkpoint. You should update the path of checkpoints in `model/model_config.py`. 
 
-### Pipeline
+#### Pipeline
 
 To load a checkpoint and train or evaluate from the checkpoint, please run the `pretrained_run.py`. For the `--run_mode` parameter, you can choose one from these strings:
 
@@ -59,7 +59,7 @@ To load a checkpoint and train or evaluate from the checkpoint, please run the `
 - `few-shot`: freeze the encoder and finetune it with fewer samples.
 - `prototype`: using prototype networks for few shot learning.
 
-### Note
+#### Note
 
 **Fair comparison.** If you want to evaluate a result and make a direct performance comparison with other models on the same dataset, the following arguments about input data must be set according to a unified setting. These arguments includes `dataset`, `seq_len`, `patch_len`. And you can also perform learning rate search on different models by modifying `model_lr` and `clsf_lr`
 

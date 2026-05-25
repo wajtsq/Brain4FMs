@@ -62,7 +62,7 @@ class BrainOmni_Trainer:
             {'params': filter(lambda p: p.requires_grad, model.parameters()), 'lr': args.model_lr},
             {'params': list(clsf.parameters()), 'lr': args.clsf_lr}
         ],
-            betas=(0.9, 0.95), eps=1e-6,
+            betas=(0.9, 0.99), eps=1e-8,
         )
 
     @staticmethod
@@ -101,6 +101,8 @@ class BrainOmni_Main(nn.Module):
         
         if args.run_mode == 'test':
             return logit, y
+        elif args.run_mode == 'prototype':
+            return emb, logit, y
         else:
             loss = loss_func(logit, y)
             return loss, logit, y

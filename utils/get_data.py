@@ -45,9 +45,19 @@ def default_get_data(args, step,):
         group_x_list.append(x)
         group_y_list.append(y)
 
+    perm = np.array([i for i in range(args.cnn_in_channels)])
+    if (step == 'train' or step == 'valid') and args.exp_id == '-4':
+        np.random.seed(args.cv_id + 1)
+        perm = np.random.permutation(args.cnn_in_channels)
+        args.perm = perm
+        group_x_list = [group_x[:, perm, :] for group_x in group_x_list]
+    else:
+        args.perm = None
+
     if not various_ch_num:
-        group_x_list = [np.concatenate(group_x_list, axis=0)]
         group_y_list = [np.concatenate(group_y_list, axis=0)]
+
+    group_x_list = [{'x': np.concatenate(group_x_list, axis=0), 'perm': perm}]
 
     return group_x_list, group_y_list
 
@@ -139,9 +149,55 @@ def default_get_data_with_pos(args, step,):
         group_y_list.append(y)
         group_pos_list.append(pos)
 
+    perm = np.array([i for i in range(args.cnn_in_channels)])
+    if (step == 'train' or step == 'valid') and args.exp_id == '-4':
+        np.random.seed(args.cv_id + 1)
+        perm = np.random.permutation(args.cnn_in_channels)
+        args.perm = perm
+        group_x_list = [group_x[:, perm, :] for group_x in group_x_list]
+    else:
+        args.perm = None
+
     if not various_ch_num:
-        group_x_list = [{'x': np.concatenate(group_x_list, axis=0),
+        group_x_list = [{'x': np.concatenate(group_x_list, axis=0), 'perm': perm,
                          'pos': np.concatenate(group_pos_list, axis=0)}]
         group_y_list = [np.concatenate(group_y_list, axis=0)]
         
     return group_x_list, group_y_list
+
+
+def sample_training_data(group_tr_x, group_tr_y, group_vl_x, group_vl_y, shot=8):
+    label = np.concatenate((group_tr_y[0], group_vl_y[0]), axis=0)
+    if isinstance(group_tr_x[0], dict):
+        tr_dict = group_tr_x[0]
+        vl_dict = group_vl_x[0]
+        data = np.concatenate((tr_dict['x'], vl_dict['x']), axis=0)
+        sampled = {
+            'x': data,
+            'perm': tr_dict.get('perm', None),
+        }
+        if 'pos' in tr_dict and 'pos' in vl_dict:
+            sampled['pos'] = np.concatenate((tr_dict['pos'], vl_dict['pos']), axis=0)
+    else:
+        data = np.concatenate((group_tr_x, group_vl_x), axis=0)
+        sampled = data
+
+    categories = np.unique(label)
+    rng = np.random.default_rng()
+    sample_idx = []
+    for category in categories:
+        idx = np.where(label == category)[0]
+        sample_idx.append(idx[rng.permutation(len(idx))][:shot])
+
+    sample_idx = np.concatenate(sample_idx)
+
+    if isinstance(sampled, dict):
+        out = {
+            'x': sampled['x'][sample_idx],
+            'perm': sampled.get('perm', None),
+        }
+        if 'pos' in sampled:
+            out['pos'] = sampled['pos'][sample_idx]
+        return out, label[sample_idx]
+
+    return sampled[sample_idx], label[sample_idx]

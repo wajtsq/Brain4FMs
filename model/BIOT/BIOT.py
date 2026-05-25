@@ -37,7 +37,7 @@ class BIOT_Trainer:
 
     @staticmethod
     def optimizer(args, model, clsf):
-        return torch.optim.AdamW([
+        return torch.optim.Adam([
                 # {'params': list(model.cnn.parameters()), 'lr': args.clsf_lr},
                 {'params': list(model.model_clsf.parameters()), 'lr': args.model_lr},
                 # {'params': list(clsf.parameters()), 'lr': args.clsf_lr},
@@ -89,6 +89,8 @@ class BIOT(nn.Module):
 
         if args.run_mode == 'test':
             return logit, y
+        elif args.run_mode == 'prototype':
+            return emb, logit, y
         else:
             loss = loss_func(logit, y)
             return loss, logit, y 

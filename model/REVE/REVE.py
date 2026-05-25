@@ -22,8 +22,8 @@ class REVE_Trainer:
 
     @staticmethod
     def clsf_loss_func(args, model=None):
-        return nn.CrossEntropyLoss(torch.tensor(args.weights, dtype=torch.float32, 
-                                                device=torch.device(args.gpu_id)))
+        return nn.CrossEntropyLoss(torch.tensor(args.weights, dtype=torch.float32,
+                                                device=args.device))
 
 
     @staticmethod
@@ -32,7 +32,7 @@ class REVE_Trainer:
             {'params': filter(lambda p: p.requires_grad, model.parameters()), 'lr': args.model_lr},
             {'params': list(clsf.parameters()), 'lr': args.clsf_lr}
         ],
-            betas=(0.9, 0.95), eps=1e-6,
+            betas=(0.9, 0.99), eps=1e-8,
         )
 
     @staticmethod
@@ -66,6 +66,12 @@ class REVE(nn.Module):
             mode="linear",
             align_corners=False
         )
+        if args.run_mode == 'prototype':
+            emb = model(x, pos, return_output=True)[-1]
+            emb = rearrange(emb, 'b (c s) d -> b c (s d)', c=C)
+            emb = emb.mean(dim=1)
+            logit = model(x, pos)
+            return emb, logit, y
         logit = model(x, pos)
             
         if args.run_mode == 'test':

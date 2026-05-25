@@ -97,7 +97,7 @@ class BrainBERT_Trainer:
             {'params': filter(lambda p: p.requires_grad, model.enc.parameters()), 'lr': args.model_lr},
             {'params': list(clsf.parameters()), 'lr': args.clsf_lr}
         ],
-            betas=(0.9, 0.95), eps=1e-5,
+            betas=(0.9, 0.99), eps=1e-8,
         )
 
     @staticmethod
@@ -153,6 +153,8 @@ class BrainBERT(nn.Module):
         
         if args.run_mode == 'test':
             return logit, y
+        elif args.run_mode == 'prototype':
+            return emb, logit, y
         else:
             loss = loss_func(logit, y)
             return loss, logit, y
@@ -162,7 +164,7 @@ class BrainBERT(nn.Module):
     def load_pretrained_weights(args, ):
         def _build_model(cfg, gpu_id):
             ckpt_path = cfg.upstream_ckpt
-            init_state = torch.load(ckpt_path, map_location=f'cuda:{gpu_id}')
+            init_state = torch.load(ckpt_path, map_location=f'cuda:{gpu_id}', weights_only=False)
             upstream_cfg = init_state["model_cfg"]
 
             # model = models.build_model(upstream_cfg)

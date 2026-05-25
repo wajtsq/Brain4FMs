@@ -82,7 +82,7 @@ class NeuroGPT_Trainer:
     @staticmethod
     def optimizer(args, model, clsf):
         return torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=00.1,
-                          betas=(0.9, 0.999), eps=1e-8,)
+                          betas=(0.9, 0.99), eps=1e-8,)
         
     @staticmethod
     def scheduler(optimizer):
@@ -213,6 +213,11 @@ class NeuroGPT(nn.Module):
         logit = out['decoding_logits']
         if args.run_mode == 'test':
             return logit, y
+        elif args.run_mode == 'prototype':
+            emb = out['embs']
+            if emb.dim() == 3:
+                emb = emb[:, -1]
+            return emb, logit, y
         else:
             loss = loss_func(batch, out)
             return loss, logit, y 

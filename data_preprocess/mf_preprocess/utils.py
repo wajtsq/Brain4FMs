@@ -78,7 +78,7 @@ def _cal_spec(args, sfreq, data):
 def _segment_data(args, sfreq, data):
     # filtering
     data = _low_pass_filter(data, sfreq, sfreq / 3)
-    # data = _notch_filter(data, sfreq, args.notch_filter, args.quality_factor)
+    data = _notch_filter(data, sfreq, args.notch_filter, args.quality_factor)
     # segment
     seq_num, _ = data.shape
     patch_len = int(sfreq * args.patch_secs)
