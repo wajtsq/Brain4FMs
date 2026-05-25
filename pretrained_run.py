@@ -56,7 +56,7 @@ if __name__ == '__main__':
     group_train.add_argument('--is_parallel', type=str2bool, default=True,
                              help='Use more than one gpu')
     group_train.add_argument('--cv_id', type=int, default=4, help='The cross validation id.')
-    group_train.add_argument('--run_mode', type=str, default='finetune',   # finetune, test
+    group_train.add_argument('--run_mode', type=str, default='finetune',   # finetune, test, few-shot, prototype
                              help='To perform finetuning, or testing.')
     group_train.add_argument('--batch_size', type=int, default=2,
                              help='Number of batches.')
