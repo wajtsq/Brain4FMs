@@ -29,13 +29,13 @@ scipy==1.13.1
 **Quick Strart**
 ```
 # finetune
-python pretrained_run.py --run_mode finetune --model LaBraM --dataset MAYO
+python pretrained_run.py --run_mode finetune --model <model_name> --dataset <dataset_name> --encoder_lr <$encoder_lr> --head_lr $<head_lr>
 # test
-python pretrained_run.py --run_mode finetune --model LaBraM --dataset MAYO
+python pretrained_run.py --run_mode finetune --model <model_name> --dataset <dataset_name>
 # few-shot
-python pretrained_run.py --run_mode few-shot --model LaBraM --dataset MAYO --shot 3
+python pretrained_run.py --run_mode few-shot --model <model_name> --dataset <dataset_name> --shot $<shot_num>
 # prototype
-python pretrained_run.py --run_mode prototype --model LaBraM --dataset MAYO --shot 3
+python pretrained_run.py --run_mode prototype --model <model_name> --dataset <dataset_name> --shot $<shot_num>
 ```
 
 <h3 id="dataset"> 🗄️ Data Preprocessing </h3>
@@ -68,6 +68,20 @@ To load a checkpoint and train or evaluate from the checkpoint, please run the `
 **Task MLP.** For models that do not prescribe a task-specific finetuning head, you may choose either a **Linear head** or a **CNN head** for downstream evaluation. To ensure a fair comparison across models, the benchmark reports results using the **Linear head** by default as it introduces minimal architectural bias. The architecture of the optional head can be configured with the following arguments: `cnn_in_channels`, `cnn_kernel_size` *(CNN)*.
 
 <h2 id='extend'>🪄 How to Extend</h2>
+
+Our benchmark is designed as an extensible framework. Users can extend the benchmark in two ways. They may **manually add** new models or datasets by following the unified configuration interfaces, or they may **use an agent-assisted workflow to semi-automatically** generate the required files. 
+
+For agent-assisted integration, two skills are provided:
+
+1. **Model Integration Skill**: automatically deploys a new benchmark model from its model name, GitHub repository, and checkpoint link.  
+   The detailed instruction file is available at [`update_skill/models/skill.md`](update_skill/models/skill.md).
+
+2. **Dataset Integration Skill**: automatically adds a new benchmark dataset from a downloaded raw data folder and its corresponding paper or documentation.  
+   The detailed instruction file is available at [`update_skill/datasets/skill.md`](update_skill/dataset/skill.md).
+
+Both skills generate benchmark-compatible adapters, configuration files, and validation reports, making the extension process more standardized, reproducible, and easy to verify.
+
+---
 
 <h3 id='newdata'>📚 Add new dataset</h3>
 
