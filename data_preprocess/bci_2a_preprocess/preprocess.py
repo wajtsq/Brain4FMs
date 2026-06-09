@@ -1,7 +1,9 @@
-import os
 import json
+import os
 import sys
-sys.path.append('/bench-mark')
+
+sys.path.append('/home/sfq/foundation_model/bench-mark')
+
 import mne
 import numpy as np
 import pickle
@@ -10,110 +12,150 @@ from scipy.io import loadmat
 from data_preprocess.bci_2a_preprocess.config import PreprocessArgs
 from data_preprocess.utils import _split_subjects
 
-# left_hand = 769, right_hand = 770, foot = 771, tongue = 772
-def _find_eval_label_file(root_path, file):
-    stem = os.path.splitext(file)[0]
-    candidates = [
-        os.path.join(root_path, f'{stem}.mat'),
-        os.path.join(root_path, 'true_labels2a', f'{stem}.mat'),
-        os.path.join(root_path, 'true_labels', f'{stem}.mat'),
-        os.path.join(root_path, 'true_label', f'{stem}.mat'),
-        os.path.join(root_path, 'labels', f'{stem}.mat'),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            return path
 
+LABEL_DICT = {'769': 7, '770': 8, '771': 9, '772': 10}
+CLASS_KEYS = ['769', '770', '771', '772']
+CLASS_EVENT_CODES = {key: 769 + idx for idx, key in enumerate(CLASS_KEYS)}
+CHANNEL_KEYS = {
+    'EEG-Fz': 'Fz', 'EEG-0': 'FC3', 'EEG-1': 'FC1', 'EEG-2': 'FCz', 'EEG-3': 'FC2', 'EEG-4': 'FC4',
+    'EEG-5': 'C5', 'EEG-C3': 'C3', 'EEG-6': 'C1', 'EEG-Cz': 'Cz', 'EEG-7': 'C2', 'EEG-C4': 'C4', 'EEG-8': 'C6',
+    'EEG-9': 'CP3', 'EEG-10': 'CP1', 'EEG-11': 'CPz', 'EEG-12': 'CP2', 'EEG-13': 'CP4',
+    'EEG-14': 'P1', 'EEG-15': 'Pz', 'EEG-16': 'P2', 'EEG-Pz': 'POz'
+}
+
+
+def _save_channels(save_dir):
+    channel_file = os.path.join(save_dir, 'channels_lst.json')
+    if not os.path.exists(channel_file):
+        with open(channel_file, 'w') as f:
+            json.dump(list(CHANNEL_KEYS.values()), f)
+
+
+def _load_eval_labels(data_root, subject_id):
+    candidate_paths = [
+        os.path.join(data_root, f'A{subject_id}E.mat'),
+        os.path.join(data_root, f'A{subject_id}E.gdf.mat'),
+        os.path.join(data_root, 'true_labels', f'A{subject_id}E.mat'),
+        os.path.join(data_root, 'true_labels', f'A{subject_id}E.gdf.mat'),
+        os.path.join(data_root, 'labels', f'A{subject_id}E.mat'),
+        os.path.join(data_root, 'labels', f'A{subject_id}E.gdf.mat'),
+        os.path.join(os.path.dirname(data_root), 'true_labels2a', f'A{subject_id}E.mat'),
+        os.path.join(os.path.dirname(data_root), 'true_labels2a', f'A{subject_id}E.gdf.mat'),
+    ]
+    for path in candidate_paths:
+        if not os.path.exists(path):
+            continue
+        mat = loadmat(path)
+        if 'classlabel' in mat:
+            return mat['classlabel'].reshape(-1).astype(np.int64) - 1
     raise FileNotFoundError(
-        f'Cannot find true label .mat for evaluation file {file}. '
-        f'Expected one of: {candidates}'
+        f'Cannot find evaluation labels for subject A{subject_id}. '
+        f'Expected one of: {candidate_paths}'
     )
 
 
-def _load_eval_labels(root_path, file):
-    label_path = _find_eval_label_file(root_path, file)
-    mat = loadmat(label_path)
-    if 'classlabel' not in mat:
-        raise KeyError(f'{label_path} does not contain "classlabel"')
-
-    labels = np.asarray(mat['classlabel']).reshape(-1).astype(int) - 1
-    return labels
-
-
-def _load_gdf_epochs(root_path, file, channel_keys, label_dict):
-    path = os.path.join(root_path, file)
-    raw = mne.io.read_raw_gdf(path, stim_channel="auto", verbose='ERROR',
-                            exclude=(["EOG-left", "EOG-central", "EOG-right"]))
-    raw.rename_channels(channel_keys)
+def _load_session_data(file_path, split, eval_labels=None):
+    raw = mne.io.read_raw_gdf(
+        file_path,
+        stim_channel='auto',
+        verbose='ERROR',
+        exclude=(['EOG-left', 'EOG-central', 'EOG-right'])
+    )
+    raw.rename_channels(CHANNEL_KEYS)
 
     events, events_id = mne.events_from_annotations(raw)
-    event_ids = events[:, 2].astype(str)
+    event_codes = events[:, 2]
 
-    if 'T' in file:
-        keys = events_id.keys() & label_dict.keys()
-        new_dict = {}
-        for key in keys:
-            new_dict[key] = events_id[key]
-        mask = np.isin(event_ids, [str(i) for i in list(new_dict.values())])
-        labels = None
-    elif 'E' in file:
-        if '783' not in events_id:
-            raise KeyError(f'{file} does not contain evaluation cue annotation "783"')
-        new_dict = {'783': events_id['783']}
-        mask = event_ids == str(events_id['783'])
-        labels = _load_eval_labels(root_path, file)
-    else:
-        raise ValueError(f'Unsupported BCI-2a file name: {file}')
+    artifact_code = events_id.get('1023')
+    valid_trial_mask = np.ones(len(events), dtype=bool)
+    if artifact_code is not None:
+        artifact_positions = set(events[event_codes == artifact_code, 0].tolist())
+        valid_trial_mask = np.array([pos not in artifact_positions for pos in events[:, 0]])
 
-    events = events[mask]
-    tmin, tmax = 1., 4.
-    epochs = mne.Epochs(raw, events, event_id=new_dict, 
-                            tmin=tmin, tmax=tmax, 
-                            proj=True, baseline=None, preload=True)
-    datas = epochs.get_data()[:, :, :750]
-    datas = np.array(datas, dtype=np.float32)
-
-    if labels is None:
-        labels = epochs.events[:, -1]-events_id['769']
-    elif len(labels) != len(datas):
-        raise ValueError(
-            f'{file} has {len(datas)} evaluation epochs but {len(labels)} labels in the .mat file'
+    tmin, tmax = 1.0, 4.0
+    if split == 'train':
+        available_keys = [key for key in CLASS_KEYS if key in events_id]
+        new_dict = {key: events_id[key] for key in available_keys}
+        event_ids = event_codes.astype(str)
+        mask = np.isin(event_ids, [str(i) for i in new_dict.values()]) & valid_trial_mask
+        selected_events = events[mask]
+        epochs = mne.Epochs(
+            raw,
+            selected_events,
+            event_id=new_dict,
+            tmin=tmin,
+            tmax=tmax,
+            proj=True,
+            baseline=None,
+            preload=True,
+            verbose='ERROR',
         )
+        code_to_label = {events_id[key]: idx for idx, key in enumerate(CLASS_KEYS) if key in events_id}
+        labels = np.array([code_to_label[code] for code in epochs.events[:, -1]], dtype=np.int64)
+    else:
+        unknown_code = events_id.get('783')
+        if unknown_code is None:
+            raise ValueError(f'Cannot find unknown cue marker 783 in {file_path}.')
+        mask = (event_codes == unknown_code) & valid_trial_mask
+        selected_events = events[mask].copy()
+        if eval_labels is None:
+            raise ValueError(f'Evaluation labels are required for {file_path}.')
+        if len(selected_events) != len(eval_labels):
+            raise ValueError(
+                f'Label count mismatch for {file_path}: '
+                f'{len(selected_events)} events vs {len(eval_labels)} labels.'
+            )
+        selected_events[:, 2] = eval_labels + CLASS_EVENT_CODES['769']
+        event_id = CLASS_EVENT_CODES.copy()
+        epochs = mne.Epochs(
+            raw,
+            selected_events,
+            event_id=event_id,
+            tmin=tmin,
+            tmax=tmax,
+            proj=True,
+            baseline=None,
+            preload=True,
+            verbose='ERROR',
+        )
+        labels = eval_labels
 
-    return datas, labels
+    datas = epochs.get_data()[:, :, :750].astype(np.float32)
+    return datas, labels.astype(np.int64)
 
 
-def get_data_all(root_path, data_save_dir):
-    label_dict = {'769': 7, '770': 8, '771': 9, '772': 10}
-    channel_keys = {'EEG-Fz': 'Fz', 'EEG-0': 'FC3', 'EEG-1': 'FC1', 'EEG-2': 'FCz', 'EEG-3': 'FC2', 'EEG-4': 'FC4',
-                'EEG-5': 'C5', 'EEG-C3': 'C3', 'EEG-6': 'C1', 'EEG-Cz': 'Cz', 'EEG-7': 'C2', 'EEG-C4': 'C4', 'EEG-8': 'C6',
-                'EEG-9': 'CP3', 'EEG-10': 'CP1', 'EEG-11': 'CPz', 'EEG-12': 'CP2', 'EEG-13': 'CP4',
-                'EEG-14': 'P1', 'EEG-15': 'Pz', 'EEG-16': 'P2', 'EEG-Pz': 'POz'}
-    channel_file = os.path.join(data_save_dir, 'group_data', 'channels_lst.json')
-    ch_names = list(channel_keys.values())
-    if not os.path.exists(os.path.join(data_save_dir, 'group_data')):
-        os.mkdir(os.path.join(data_save_dir, 'group_data'))
-    if not os.path.exists(channel_file):
-        with open(channel_file, 'w') as f:
-            json.dump(ch_names, f)
+# left_hand = 769, right_hand = 770, foot = 771, tongue = 772
+def get_data_all(args):
+    root_path = args.data_root
+    data_save_dir = args.data_save_dir
+    group_dir = os.path.join(data_save_dir, 'group_data')
+    os.makedirs(group_dir, exist_ok=True)
+    _save_channels(group_dir)
 
-    subject_data = {}
-    subject_labels = {}
-    for file in sorted(os.listdir(root_path)):
-        if not file.endswith('.gdf') or ('T' not in file and 'E' not in file):
-            continue
+    for subject in range(1, args.subject_num + 1):
+        subject_id = f'{subject:02d}'
+        subject_datas, subject_labels = [], []
 
-        subject = file[:3]
-        datas, labels = _load_gdf_epochs(root_path, file, channel_keys, label_dict)
-        subject_data.setdefault(subject, []).append(datas)
-        subject_labels.setdefault(subject, []).append(labels)
+        for session_id in args.cross_subject_sessions:
+            file_path = os.path.join(root_path, f'A{subject_id}{session_id}.gdf')
+            if session_id == 'T':
+                datas, labels = _load_session_data(file_path, split='train')
+            elif session_id == 'E':
+                eval_labels = _load_eval_labels(root_path, subject_id)
+                datas, labels = _load_session_data(file_path, split='test', eval_labels=eval_labels)
+            else:
+                raise ValueError(f'Unsupported cross-subject session: {session_id}')
 
-    for subject in sorted(subject_data.keys()):
-        datas = np.concatenate(subject_data[subject], axis=0)
-        labels = np.concatenate(subject_labels[subject])
-        np.save(os.path.join(data_save_dir, f'{subject}_data.npy'), datas)
-        np.save(os.path.join(data_save_dir, f'{subject}_label.npy'), labels)
-        print(f'data and label of subject {subject} saved')
+            np.save(os.path.join(data_save_dir, f'A{subject_id}_session{session_id}_data.npy'), datas)
+            np.save(os.path.join(data_save_dir, f'A{subject_id}_session{session_id}_label.npy'), labels)
+            subject_datas.append(datas)
+            subject_labels.append(labels)
+
+        subject_datas = np.concatenate(subject_datas, axis=0)
+        subject_labels = np.concatenate(subject_labels)
+        np.save(os.path.join(data_save_dir, f'A{subject_id}_data.npy'), subject_datas)
+        np.save(os.path.join(data_save_dir, f'A{subject_id}_label.npy'), subject_labels)
+        print(f'cross-subject data of subject A{subject_id} saved')
 
 
 def group_data(args):
@@ -125,6 +167,8 @@ def group_data(args):
         groups = _split_subjects(subject_list, args.group_num)
         pickle.dump(groups, open(path, 'wb'))
 
+    group_dir = os.path.join(args.data_save_dir, 'group_data')
+    os.makedirs(group_dir, exist_ok=True)
     for i, group in enumerate(groups):
         datas, labels = [], []
         for g in group:
@@ -133,11 +177,13 @@ def group_data(args):
         datas = np.concatenate(datas, axis=0)
         labels = np.concatenate(labels)
 
-        np.save(os.path.join(args.data_save_dir, f'group_data/group_{i}_data.npy'), datas)
-        np.save(os.path.join(args.data_save_dir, f'group_data/group_{i}_label.npy'), labels)
+        np.save(os.path.join(group_dir, f'group_{i}_data.npy'), datas)
+        np.save(os.path.join(group_dir, f'group_{i}_label.npy'), labels)
         print(f'data and label of group {i} saved')
 
 
 args = PreprocessArgs()
-get_data_all(args.data_root, args.data_save_dir)
+
+# Cross-subject pipeline
+get_data_all(args)
 group_data(args)
