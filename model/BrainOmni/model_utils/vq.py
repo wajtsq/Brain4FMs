@@ -330,21 +330,21 @@ class EuclideanCodebook(nn.Module):
 
         if self.training:
             self.expire_codes_(x)
-            # 统计的是每一条编码使用过多少次（未归一化），更新
+            # Count uses of each code (unnormalized) and update
             one_hot_sum = embed_onehot.sum(0)
             all_reduce_tensors([one_hot_sum], op=dist.ReduceOp.SUM)
             ema_inplace(self.cluster_size, one_hot_sum, self.decay)
-            # 将每条编码对应的embedding全部加起来（未归一化）,更新
+            # Sum embeddings for each code (unnormalized) and update
             embed_sum = embed_onehot.t() @ x
             embed_sum = embed_sum.to(torch.float32)
             all_reduce_tensors([embed_sum], op=dist.ReduceOp.SUM)
             ema_inplace(self.embed_avg, embed_sum, self.decay)
-            # 进行一次平滑
+            # Apply smoothing
             cluster_size = (
                 laplace_smoothing(self.cluster_size, self.epsilon)
                 * self.cluster_size.sum()
             )
-            # 将新的embed替换
+            # Replace with the new embeddings
             embed_normalized = self.embed_avg / cluster_size.unsqueeze(1)
             self.embed.data.copy_(embed_normalized)
 

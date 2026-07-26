@@ -159,7 +159,7 @@ class SEANetEncoder(nn.Module):
         self.ratios = list(reversed(ratios))
         del ratios
         self.n_residual_layers = n_residual_layers
-        self.hop_length = np.prod(self.ratios)  # 计算乘积
+        self.hop_length = np.prod(self.ratios)  # Compute the product
 
         act = getattr(nn, activation) if activation != "Snake" else Snake1d
         mult = 1

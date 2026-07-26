@@ -77,13 +77,21 @@ class BFM(nn.Module):
     
     @staticmethod
     def forward_propagate(args, data_packet, model, clsf, loss_func=None):
-        y, input_ids, attention_mask, labels = data_packet
-        device = f'cuda:{args.gpu_id}'
+        y, input_ids, attention_mask, labels, *extra = data_packet
+        epoch_id = extra[0] if extra else None
+        # The representation-analysis runner may deliberately use CPU for a
+        # smoke test; keep the packet on the model's configured device.
+        device = args.device
         input_ids = input_ids.to(device)
         attention_mask = attention_mask.to(device)
         labels = labels.to(device)
         
-        if args.is_parallel:
+        if args.run_mode == 'exp5':
+            return input_ids, y
+        
+        # The standalone frozen-representation runner does not use the
+        # training launcher that normally defines ``is_parallel``.
+        if getattr(args, 'is_parallel', False):
             loss, logits = model.module(input_ids, attention_mask, labels)
         else:
             loss, logits = model(input_ids, attention_mask, labels)
@@ -91,11 +99,13 @@ class BFM(nn.Module):
         # logits = logits.unsqueeze(1)
         logit = clsf(logits)
         
-        if args.run_mode != 'test' and args.run_mode != 'few-shot':
+        if args.run_mode in {'exp1', 'exp3', 'prototype'}:
+            if epoch_id is None:
+                raise RuntimeError('BFM representation analysis requires epoch identifiers.')
+            return logits, logit, y, epoch_id
+        if args.run_mode != 'test':
             loss += loss_func(logit, y)
             return loss, logit, y
-        elif args.run_mode == 'few-shot':
-            return logits, logit, y
         else:
             return logit, y
         

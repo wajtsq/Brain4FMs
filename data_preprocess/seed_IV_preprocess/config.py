@@ -8,7 +8,7 @@ class PreprocessArgs:
     high_pass_filter: float = 0.01
     notch_filter: float = 50
     quality_factor: float = 30
-    l_freq: float = 0.3
+    l_freq: float = 1
     h_freq: float = 75
 
     patch_secs: float = 1

@@ -47,7 +47,7 @@ class BrainTokenizerTrainerConfig:
         self.n_head = 4
         self.dropout = 0.0
 
-        # 训练参数
+        # Training parameters
         self.total_batch_per_update = 512
 
         self.batch_size = 16
@@ -118,7 +118,7 @@ class BrainTokenizerTrainerConfig:
             "n_neuro": self.n_neuro,
             "n_head": self.n_head,
             "dropout": self.dropout,
-            "codebook_dim": self.codebook_dim,  # 注意这里保留了原来的self.n_dim引用
+            "codebook_dim": self.codebook_dim,  # Keep the original self.n_dim reference here
             "codebook_size": self.codebook_size,
             "num_quantizers": self.num_quantizers,
             "rotation_trick": self.rotation_trick,

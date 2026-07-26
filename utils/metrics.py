@@ -49,6 +49,8 @@ class BinaryClassMetrics:
         self.f_one = fbeta_score(y_true, y_pred, beta=1, pos_label=1, average='binary', zero_division=0)
         self.f_doub= fbeta_score(y_true, y_pred, beta=2, pos_label=1, average='binary', zero_division=0)
         self.f_half= fbeta_score(y_true, y_pred, beta=0.5, pos_label=1, average='binary', zero_division=0)
+        self.f_one_macro  = fbeta_score(y_true, y_pred, beta=1, labels=np.arange(2), average='macro')
+        self.f_doub_macro = fbeta_score(y_true, y_pred, beta=2, labels=np.arange(2), average='macro')
 
         precision, recall, thresholds = precision_recall_curve(y_true, y_score[:, 1])
         self.auprc = auc(recall, precision)
@@ -125,8 +127,8 @@ class MultiClassMetrics:
             self.auc_roc_macro = roc_auc_score(y_true, y_score, average='macro', multi_class='ovr', labels=np.arange(num_class))
         self.prec = precision_score(y_true, y_pred, labels=np.arange(num_class), average='macro')
         self.rec = recall_score(y_true, y_pred, labels=np.arange(num_class), average='macro')
-        self.f_one_micro  = fbeta_score(y_true, y_pred, beta=1, labels=np.arange(num_class), average='macro')
-        self.f_doub_micro = fbeta_score(y_true, y_pred, beta=2, labels=np.arange(num_class), average='macro')
+        self.f_one_macro  = fbeta_score(y_true, y_pred, beta=1, labels=np.arange(num_class), average='macro')
+        self.f_doub_macro = fbeta_score(y_true, y_pred, beta=2, labels=np.arange(num_class), average='macro')
         res = []
         for l in range(num_class):
             prec, recall, _, _ = precision_recall_fscore_support(true == l,
@@ -139,7 +141,6 @@ class MultiClassMetrics:
         self.spec_mean = np.mean(res[:, 0])
         self.sens_mean = np.mean(res[:, 1])
 
-        self.f_one_macro  = fbeta_score(y_true, y_pred, beta=1, labels=np.arange(num_class), average='macro')
         self.kappa = cohen_kappa_score(y_true, y_pred, labels=np.arange(num_class))
 
         self.conf_matrix = ('\n' + str(confusion_matrix(y_true, y_pred))) if hasattr(basic_args, 'print_matrix') and basic_args.print_matrix else ''

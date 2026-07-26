@@ -4,7 +4,8 @@ from dataclasses import dataclass
 @dataclass
 class PreprocessArgs:
 
-    high_pass_filter: float = 0.01
+    high_pass_filter: float = 0.3
+    low_pass_filter: float = 45
     notch_filter: float = 50
     quality_factor: float = 30
 

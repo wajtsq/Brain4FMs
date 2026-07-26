@@ -2,7 +2,7 @@ import json
 import os
 import sys
 
-sys.path.append('/home/sfq/foundation_model/bench-mark')
+sys.path.append('/bench-mark')
 
 import mne
 import numpy as np
@@ -62,6 +62,13 @@ def _load_session_data(file_path, split, eval_labels=None):
         exclude=(['EOG-left', 'EOG-central', 'EOG-right'])
     )
     raw.rename_channels(CHANNEL_KEYS)
+    raw.load_data(verbose='ERROR')
+    raw.filter(
+        l_freq=args.high_pass_filter,
+        h_freq=args.low_pass_filter,
+        verbose='ERROR',
+    )
+    raw.notch_filter(freqs=[args.notch_filter], verbose='ERROR')
 
     events, events_id = mne.events_from_annotations(raw)
     event_codes = events[:, 2]

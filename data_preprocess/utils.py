@@ -28,7 +28,8 @@ def _notch_filter(data, fs, freq, q):
 
 def _segment_data(args, sfreq, data):
     # filtering
-    data = _band_pass_filter(data, sfreq, args.high_pass_filter, sfreq / 3)
+    low_pass_filter = getattr(args, 'low_pass_filter', sfreq / 3)
+    data = _band_pass_filter(data, sfreq, args.high_pass_filter, low_pass_filter)
     data = _notch_filter(data, sfreq, args.notch_filter, args.quality_factor)
     # segment
     ch_num, ch_len = data.shape

@@ -107,7 +107,7 @@ def build_brain_bucket_dataloader(
         metadata_list = [i for i in metadata_list if i["is_eeg"]]
     elif signal_type == "meg":
         metadata_list = [i for i in metadata_list if i["is_meg"]]
-    # 多卡划分
+    # Partition data across multiple GPUs
     channels_set = sorted(set([i["channels"] for i in metadata_list]))
     replicated_metadata_list = []
     for channels in channels_set:

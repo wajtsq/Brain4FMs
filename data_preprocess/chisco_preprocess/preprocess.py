@@ -23,7 +23,7 @@ def load_subject(args, subjects, task):
             try:
                 run_id = fn.split("run-")[1].split("_")[0]
             except IndexError:
-                print(f"⚠️ 无法解析 run 编号: {fn}")
+                print(f"⚠️ Unable to resolve run number: {fn}")
                 continue
             if run_id not in valid_run_ids:
                 continue
@@ -64,20 +64,20 @@ def group_data(args, task):
 
 def split_data(data, label, num_groups, path, subject):
     save_path = os.path.join(path, f'sub-0{subject}', 'group_data')
-    os.makedirs(save_path, exist_ok=True)  # 创建保存目录
+    os.makedirs(save_path, exist_ok=True)  # Create the output directory
 
     data_per_group = len(data) // num_groups
     
     for i in range(num_groups):
-        # 计算当前组的起始和结束索引
+        # Compute the start and end indices for the current group
         start_idx = i * data_per_group
         end_idx = (i + 1) * data_per_group if i != num_groups - 1 else len(data)
         
-        # 分割数据和标签
+        # Split the data and labels
         group_data = data[start_idx:end_idx]
         group_label = label[start_idx:end_idx]
         
-        # 保存为.npy文件
+        # Save as .npy files
         np.save(os.path.join(save_path, f'group_{i}_data.npy'), group_data)
         np.save(os.path.join(save_path, f'group_{i}_label.npy'), group_label)
 

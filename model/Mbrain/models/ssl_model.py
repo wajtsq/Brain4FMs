@@ -121,7 +121,7 @@ class ARModel(nn.Module):
             self.baseNet = BertModel(
                 input_size=dim_encoded,
                 n_predicts=n_predicts,
-                seq_len=45,
+                seq_len=58,
                 hidden_size=dim_output,
                 position_embedding_type='static'
             )
@@ -155,14 +155,14 @@ class ARModel(nn.Module):
 class MBrain(nn.Module):
     def __init__(self,
                  hidden_dim,            #
-                 channel_num,           #
                  gcn_dim,               #
                  n_predicts,            # total steps for forecasting
                  graph_construct,
                  direction,
                  replace_ratio,    # replace ratio in replacement task
                  ar_mode,         #
-                 args: Namespace):
+                 args: Namespace,
+                 channel_num=None):
         super(MBrain, self).__init__()
         self.hidden_dim = hidden_dim
         self.channel_num = channel_num
@@ -188,11 +188,17 @@ class MBrain(nn.Module):
             self.linear_out = nn.Linear(hidden_dim * 2, hidden_dim)
             self.linear_cat = nn.Linear(hidden_dim, 1)
 
-            # predefined mean matrix of similarity
-            self.mean_matrix = similarity_mean_eeg(args)
+            # In the SEEG release, patients can have different channel counts.
+            # The mean graph is therefore keyed by node/channel count when it is
+            # explicitly precomputed. Downstream evaluation with direction='single'
+            # does not call diffusion_module, so we avoid building it by default.
+            self.mean_matrix = {}
+            if getattr(args, 'mbrain_build_mean_matrix', False):
+                self.mean_matrix = similarity_mean_eeg(args)
             self.threshold = args.graph_threshold
 
-            self.mean_matrix = self.mean_matrix.cuda(args.gpu_id)
+            if torch.is_tensor(self.mean_matrix):
+                self.mean_matrix = self.mean_matrix.cuda(args.gpu_id)
             self.Softplus = torch.nn.Softplus()
 
         elif graph_construct == 'predefined_distance':
@@ -240,10 +246,20 @@ class MBrain(nn.Module):
             var_matrix = x.view(batch_size, node_num, node_num)
 
             normal_distribution = torch.randn_like(var_matrix, device=var_matrix.device)
-            sample_weight = self.mean_matrix + self.Softplus(var_matrix) * normal_distribution
+            if isinstance(self.mean_matrix, dict):
+                mean_matrix = self.mean_matrix.get(node_num)
+                if mean_matrix is None:
+                    mean_matrix = torch.zeros((node_num, node_num), device=var_matrix.device)
+                else:
+                    mean_matrix = mean_matrix.to(var_matrix.device)
+            elif torch.is_tensor(self.mean_matrix):
+                mean_matrix = self.mean_matrix.to(var_matrix.device)
+            else:
+                mean_matrix = torch.zeros((node_num, node_num), device=var_matrix.device)
+            sample_weight = mean_matrix + self.Softplus(var_matrix) * normal_distribution
 
             mask_matrix = torch.ones((node_num, node_num)) - torch.eye(node_num)
-            mask_matrix = mask_matrix.cuda()
+            mask_matrix = mask_matrix.to(sample_weight.device)
             sample_weight = sample_weight * mask_matrix
 
             i, j, k = torch.where(sample_weight >= self.threshold)
@@ -332,7 +348,7 @@ class MBrain(nn.Module):
         batch_size, channel_num, seq_size, dim_ar = after_gAR_batch.size()
         # if ar_mode != 'TRANSFORMER': dim_ar = hidden_dim * 2
 
-        if self.graph_construct != 'NoGraph':
+        if self.graph_construct.lower() != 'nograph':
             if train_stage:
                 if self.direction == 'single':
                     window_size = seq_size - self.nPredicts

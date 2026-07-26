@@ -132,10 +132,10 @@ def analysis_summary_txt(summary_file):
         lines = f.readlines()
 
     for i in range(len(lines)):
-        line = lines[i].strip()  # 去除行尾的换行符和空格
+        line = lines[i].strip()  # Remove trailing newlines and whitespace
 
         if line.startswith('Number of Seizures in File: '):
-            x = int(line.split(': ')[-1])  # 获取数字x
+            x = int(line.split(': ')[-1])  # Extract the numeric value x
 
             if x > 0 and i - 3 >= 0 and i + 2 < len(lines):
                 start, end = [], []
@@ -173,4 +173,3 @@ def _spilt_data(eeg_data, sfreq, start, end, seizure_num):
             normal_list.append(eeg_data[:, end[i]:start[i+1]])
 
     return seizure_list, normal_list
-

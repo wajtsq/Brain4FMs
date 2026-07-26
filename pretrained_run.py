@@ -34,6 +34,22 @@ from utils.data_info import data_info_dict
 from utils.get_data import sample_training_data
 
 
+def load_first_group_channels(data_path):
+    if not os.path.isdir(data_path):
+        return None, None, 0
+    for file_name in sorted(os.listdir(data_path)):
+        if file_name.endswith('_channel_lst.json'):
+            channel_path = os.path.join(data_path, file_name)
+            with open(channel_path, 'r') as f:
+                channel_names = json.load(f)
+            return channel_names, channel_path, len(channel_names)
+    channel_path = os.path.join(data_path, 'channels_lst.json')
+    if os.path.exists(channel_path):
+        with open(channel_path, 'r') as f:
+            channel_names = json.load(f)
+        return channel_names, channel_path, len(channel_names)
+    return None, None, 0
+
 def str2bool(v):
     if isinstance(v, bool):
         return v
@@ -62,7 +78,7 @@ if __name__ == '__main__':
                              help='To perform finetuning, or testing.')
     group_train.add_argument('--shot', type=int, default=8,
                              help='The sample number of prototype few shot.')
-    group_train.add_argument('--batch_size', type=int, default=2,
+    group_train.add_argument('--batch_size', type=int, default=128,
                              help='Number of batches.')
     group_train.add_argument('--accumulation_steps', type=int, default=1,
                              help='Gradient accumulation parameter.')
@@ -133,9 +149,12 @@ if __name__ == '__main__':
     args.full_data_path = data_info_dict[args.dataset]['data_path']
     args.patch_len = args.sfreq*1
     args.cnn_in_channels = data_info_dict[args.dataset]['channel']
+    args.various_ch_num = data_info_dict[args.dataset]['various_ch_num']
     args.seq_len = data_info_dict[args.dataset]['seq_len']
     args.downstream = data_info_dict[args.dataset]['downstream']
-    args.accumulation_steps = max(1, 128 // args.batch_size)
+    args.accumulation_steps = 128 // args.batch_size   # to keep the same effective batch size for different settings
+    if args.various_ch_num and args.head == 'cnn':
+        raise ValueError('various_ch_num=True requires --head linear; ChannelAggrClsf has fixed input channels.')
     if 'Chisco' in args.dataset:
         args.label_path = data_info_dict[args.dataset]['label_path']
 
@@ -155,12 +174,20 @@ if __name__ == '__main__':
 
     main_logs = {"epoch": []}
     args.weights = [1.0 for i in range(args.n_class)]
+    if args.various_ch_num:
+        init_channel_names, init_channel_path, init_channel_num = load_first_group_channels(args.full_data_path)
+        args.init_channel_names = init_channel_names
+        args.init_channel_path = init_channel_path
+        args.init_cnn_in_channels = init_channel_num
+        if args.cnn_in_channels <= 0 and init_channel_num > 0:
+            args.cnn_in_channels = init_channel_num
 
     if args.run_mode != 'test':
         tr_x_list, tr_y_list = get_data_dict[args.dataset](args, step='train')
         vl_x_list, vl_y_list = get_data_dict[args.dataset](args, step='valid')
         # args.weights = [0.1, 1]
-        args.weights = compute_class_weight('balanced', classes=np.unique(tr_y_list[0]), y=tr_y_list[0])
+        train_labels = np.concatenate(tr_y_list, axis=0)
+        args.weights = compute_class_weight('balanced', classes=np.unique(train_labels), y=train_labels)
 
     args.data_id = '{}_ssn{}_sl{}_pl{}'.format(
         args.dataset,
@@ -198,7 +225,7 @@ if __name__ == '__main__':
            args.run_mode == 'test'      # must set the load_ckpt_path if continue finetuning
 
     # host_name = os.getcwd().split('/')[2]
-    # args.path_checkpoint = utils.paths[host_name]  # 根据用户设置path_checkpoint
+    # args.path_checkpoint = utils.paths[host_name]  # Set path_checkpoint according to the user's configuration
 
     # Load ckpt to continue finetuning
     if (not args.from_pretrained and args.load_ckpt_path is not None) or \

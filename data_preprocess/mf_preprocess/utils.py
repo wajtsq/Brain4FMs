@@ -77,7 +77,7 @@ def _cal_spec(args, sfreq, data):
 
 def _segment_data(args, sfreq, data):
     # filtering
-    data = _low_pass_filter(data, sfreq, sfreq / 3)
+    data = _band_pass_filter(data, sfreq, args.high_pass_filter, sfreq / 3)
     data = _notch_filter(data, sfreq, args.notch_filter, args.quality_factor)
     # segment
     seq_num, _ = data.shape

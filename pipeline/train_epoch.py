@@ -29,6 +29,11 @@ def train_epoch(args, tr_x_list, tr_y_list, model, clsf, loss_func, optimizer, s
     for file_idx in range(file_num):
         tr_x = tr_x_list[file_idx]
         tr_y = tr_y_list[file_idx]
+        if isinstance(tr_x, dict):
+            args.current_group_id = tr_x.get('group_id')
+            args.current_channel_names = tr_x.get('channel_names')
+            args.current_channel_path = tr_x.get('channel_path')
+            args.current_cnn_in_channels = tr_x.get('cnn_in_channels')
 
         train_dataset = dataset_class_dict[args.model](args, tr_x, tr_y)
         train_loader = train_dataset.get_data_loader(args.batch_size, shuffle=True, num_workers=0)

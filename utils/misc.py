@@ -8,7 +8,7 @@ import os
 import psutil
 import json
 
-from utils.data_info import data_info_dict
+from data_process.data_info import data_info_dict
 
 
 def process_init():
@@ -30,11 +30,12 @@ def update_logs(args, logs, epo_loss, metrics=None):
             logs[f"Acc"] = metrics.acc * 100.0
             logs[f"Prec"] = metrics.prec * 100.0
             logs[f"Rec"] = metrics.rec * 100.0
-            logs[f"F1"] = metrics.f_one * 100.0
             logs[f"F2"] = metrics.f_doub * 100.0
             logs[f"AUPRC"] = metrics.auprc * 100.0
             logs[f"AUROC"] = metrics.auroc * 100.0
             logs[f'BACC'] = metrics.bacc * 100.0
+            logs[f"MF1"] = metrics.f_one_macro * 100.0
+            logs[f"MF2"] = metrics.f_doub_macro * 100.0
         elif n_class > 2:
             logs[f"Acc"] = metrics.accuracy * 100.0
             logs[f"Prec"] = metrics.prec * 100.0
@@ -47,6 +48,7 @@ def update_logs(args, logs, epo_loss, metrics=None):
             logs[f"Kappa"] = metrics.kappa * 100.0
             logs[f"AUROC"] = metrics.auc_roc_macro * 100.0
             logs[f'BACC'] = metrics.bacc * 100.0
+            logs[f"MF2"] = metrics.f_doub_macro * 100.0
         else: raise NotImplementedError(f'Illegal number of classes.')
 
     return logs

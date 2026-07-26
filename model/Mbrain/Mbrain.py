@@ -6,7 +6,7 @@ from argparse import Namespace
 from model.Mbrain.models.ssl_model import MBrain
 from model.Mbrain.models.downstream_task_criterion import DownstreamCriterion, LinearClassifier4EEG
 from model.model_config import ModelPathArgs
-
+from model.ch_aggr_clsf import time_bandpower
 
 class Mbrain_Trainer:
     def __init__(self, args: Namespace):
@@ -20,6 +20,7 @@ class Mbrain_Trainer:
         args.stride_size = [2, 2, 1]
         args.padding_size = [0, 0, 0]
         args.graph_threshold = 0.5      # The threshold to sample edges in graph construct module
+        args.mbrain_build_mean_matrix = False
         return args
 
 
@@ -38,11 +39,12 @@ class Mbrain_Trainer:
 
     @staticmethod
     def optimizer(args, model, clsf):
-        return torch.optim.Adam([{'params': model.encoder.parameters(), 'lr': args.model_lr}, 
-                                 {'params':model.cls.parameters(), 'lr': args.clsf_lr},
-                                 {'params': model.att.parameters(), 'lr': args.model_lr},
+        return torch.optim.Adam([{'params': model.encoder.parameters(), 'lr': 1e-3}, 
+                                #  {'params':model.cls.parameters(), 'lr': 5e-4},
+                                 {'params': model.att.parameters(), 'lr': 1e-6},
                                  {'params': clsf.parameters(), 'lr': args.clsf_lr}],
-                                    betas=(0.9, 0.99), eps=1e-08,)
+                                    betas=(0.9, 0.999), eps=1e-08,
+                                    weight_decay=1e-6)
 
     @staticmethod
     def scheduler(optimizer):
@@ -100,7 +102,10 @@ class Mbrain(nn.Module):
 
         if args.run_mode == 'test':
             return logit, y
-        elif args.run_mode == 'prototype':
+        elif args.run_mode == 'exp1' or args.run_mode == 'exp3' or args.run_mode == 'few-shot':
+            if args.run_mode == 'exp3':
+                inputs = x.reshape(bsz, ch_num, -1)
+                y = time_bandpower(args, inputs, args.sfreq)
             emb = emb.mean(dim=1)
             emb = emb.mean(dim=1)
             return emb, logit, y
@@ -114,25 +119,59 @@ class Mbrain(nn.Module):
 
     @staticmethod
     def load_pretrained_weights(args):
-        pretrained_model_path = ModelPathArgs.Mbrain_path
+        pretrained_model_path = Mbrain._select_pretrained_path(args)
         Mbrain_model = MBrain(args=args,
                             hidden_dim=args.hidden_dim,
-                            channel_num=19,     
                             gcn_dim=[256],
                             n_predicts=8,        # Number of time steps in prediction task
                             graph_construct='sample_from_distribution',        # The method for graph construction, including ['sample_from_distribution', 'predefined_distance']
                             direction='single',         # The direction for prediction task, including ['single', 'bi', 'no']
                             replace_ratio=0.15,         # The ratio for replacing timestamps in replacement task.
                             ar_mode='LSTM',             # AR model: 'RNN', 'LSTM', 'GRU', 'TRANSFORMER'
-                        )
-        final_epoch = 0
-        for file in os.listdir(pretrained_model_path):
-            if file[-3:] == '.pt' and int(file[11:][:-3]) > final_epoch:
-                final_epoch = int(file[11:][:-3])
-        pretrained_model_path = os.path.join(pretrained_model_path, f"checkpoint_{final_epoch}.pt")
-        state_dict = torch.load(pretrained_model_path, map_location=f'cuda:{args.gpu_id}')
-        Mbrain_model.load_state_dict(state_dict["BestModel"], strict=True)
+        )
+        checkpoint_path = Mbrain._resolve_checkpoint_path(pretrained_model_path)
+        map_location = torch.device(f'cuda:{args.gpu_id}' if torch.cuda.is_available() else 'cpu')
+        state_dict = torch.load(checkpoint_path, map_location=map_location)
+        if isinstance(state_dict, dict):
+            for key in ("BestModel", "Model", "model", "state_dict"):
+                if key in state_dict and isinstance(state_dict[key], dict):
+                    state_dict = state_dict[key]
+                    break
+        incompatible = Mbrain_model.load_state_dict(state_dict, strict=False)
+        print(f'Mbrain loaded checkpoint: {checkpoint_path}')
+        if incompatible.missing_keys:
+            print(f'Mbrain missing keys: {len(incompatible.missing_keys)}')
+        if incompatible.unexpected_keys:
+            print(f'Mbrain unexpected keys: {len(incompatible.unexpected_keys)}')
         return Mbrain_model
+
+    @staticmethod
+    def _select_pretrained_path(args):
+        seeg_path = getattr(ModelPathArgs, 'Mbrain_SEEG_path', None)
+        if getattr(args, 'dataset', '') in {'HUP-SEEG', 'HUP-ECoG', 'SWEC', 'Cogitate', 'MAYO', 'FNUSA'} and seeg_path and os.path.exists(seeg_path):
+            return seeg_path
+        return ModelPathArgs.Mbrain_path
+
+    @staticmethod
+    def _resolve_checkpoint_path(pretrained_model_path):
+        if os.path.isfile(pretrained_model_path):
+            return pretrained_model_path
+        final_epoch = None
+        final_path = None
+        for file in os.listdir(pretrained_model_path):
+            if not file.endswith('.pt'):
+                continue
+            stem = file[:-3]
+            try:
+                epoch = int(stem.split('_')[-1])
+            except ValueError:
+                epoch = -1
+            if final_epoch is None or epoch > final_epoch:
+                final_epoch = epoch
+                final_path = os.path.join(pretrained_model_path, file)
+        if final_path is None:
+            raise FileNotFoundError(f'No .pt checkpoint found in {pretrained_model_path}')
+        return final_path
 
 
     @staticmethod

@@ -32,6 +32,11 @@ def evaluate_epoch(args, x_list, y_list, model, clsf, loss_func, step):
     for file_idx in range(file_num):
         x = x_list[file_idx]
         y = y_list[file_idx]
+        if isinstance(x, dict):
+            args.current_group_id = x.get('group_id')
+            args.current_channel_names = x.get('channel_names')
+            args.current_channel_path = x.get('channel_path')
+            args.current_cnn_in_channels = x.get('cnn_in_channels')
         
         if args.model == 'NeuroLM' or args.model == 'BFM':
             valid_dataset = dataset_class_dict[args.model](args, x, y, is_train=False)

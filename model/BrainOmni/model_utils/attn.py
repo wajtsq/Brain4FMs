@@ -140,7 +140,7 @@ class SelfAttention(nn.Module):
         x = self.qkv(x)
         q, k, v = torch.split(x, split_size_or_sections=self.n_dim, dim=-1)
 
-        # 有无rope对形状变换有影响，需要判断
+        # RoPE affects shape transformations, so handle it separately
         if self.rope:
             q = q.view(B, T, self.n_head, -1)
             k = k.view(B, T, self.n_head, -1)

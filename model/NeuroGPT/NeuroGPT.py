@@ -81,7 +81,7 @@ class NeuroGPT_Trainer:
 
     @staticmethod
     def optimizer(args, model, clsf):
-        return torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=00.1,
+        return torch.optim.AdamW(model.parameters(), lr=args.model_lr, weight_decay=0.01,
                           betas=(0.9, 0.99), eps=1e-8,)
         
     @staticmethod

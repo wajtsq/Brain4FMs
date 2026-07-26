@@ -5,7 +5,7 @@ from dataclasses import dataclass
 class PreprocessArgs:
 
     min_duration: int = 60
-    high_pass_filter: float = 0.01
+    high_pass_filter: float = 0.2
     notch_filter: float = 50
     quality_factor: float = 30
 

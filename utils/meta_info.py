@@ -35,6 +35,8 @@ from model.NeuroGPT.NeuroGPT import NeuroGPT, NeuroGPT_Trainer
 from model.NeuroLM.NeuroLM import NeuroLM, NeuroLM_Trainer
 from model.EEGPT.EEGPT import EEGPT, EEGPT_Trainer
 from model.REVE.REVE import REVE, REVE_Trainer
+from model.MVPFormer.MVPFormer import MVPFormer, MVPFormer_Trainer
+from model.CodeBrain.CodeBrain import CodeBrain, CodeBrain_Trainer
 
 from utils.metrics import BinaryClassMetrics, MultiClassMetrics
 
@@ -123,6 +125,8 @@ dataset_class_dict = {
     'CCNSE': DefaultDataset,
     'BrainOmni': BrainOminiDataset,
     'REVE': REVEDataset,
+    'MVPFormer': MVPFormer_Trainer,
+    'CodeBrain': CodeBrain_Trainer,
 }
 
 trainer_dict = {
@@ -141,6 +145,8 @@ trainer_dict = {
     'EEGPT': EEGPT_Trainer,
     'BrainOmni': BrainOmni_Trainer,
     'REVE': REVE_Trainer,
+    'MVPFormer': MVPFormer_Trainer,
+    'CodeBrain': CodeBrain_Trainer,
 }
 
 model_dict = {
@@ -159,6 +165,8 @@ model_dict = {
     'EEGPT': EEGPT,
     'BrainOmni': BrainOmni_Main,
     'REVE': REVE,
+    'MVPFormer': MVPFormer,
+    'CodeBrain': CodeBrain,
 }
 
 

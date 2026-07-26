@@ -45,6 +45,7 @@ class BFMDataset(Dataset):
         self.x = []
         self.y = []
         self.ch_id = []
+        self.epoch_id = []
         
         for seq_idx in range(self.seq_num):
             if self.ch_num > self.max_channels_per_seq:
@@ -61,6 +62,7 @@ class BFMDataset(Dataset):
                 self.x.append(x[seq_idx, ch_idx, :])
                 self.y.append(y[seq_idx])
                 self.ch_id.append(ch_idx)
+                self.epoch_id.append(seq_idx)
         
         self.is_train = is_train 
         self.mode = 'training' if is_train and args.run_mode == 'finetune' else 'validation'
@@ -172,7 +174,7 @@ class BFMDataset(Dataset):
         labels = torch.squeeze(labels)                        # (prediction_length)
         original_labels =  torch.tensor(self.y[index])        # scalar
         
-        return original_labels, input_ids, attention_mask, labels
+        return original_labels, input_ids, attention_mask, labels, torch.tensor(self.epoch_id[index])
 
 
     def __len__(self):

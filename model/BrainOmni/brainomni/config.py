@@ -67,7 +67,7 @@ class BrainOmniTrainerConfig:
             self.lr = 4e-4
 
         self.batch_size = 8
-        # 训练参数
+        # Training parameters
         self.weight_decay = 0.05
         self.total_batch_per_update = 256
 

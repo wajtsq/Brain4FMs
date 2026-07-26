@@ -1,6 +1,3 @@
-# Authors: Yonghao Song <eeyhsong@gmail.com>
-#
-# License: BSD (3-clause)
 import torch
 import torch.nn.functional as F
 from einops import rearrange
